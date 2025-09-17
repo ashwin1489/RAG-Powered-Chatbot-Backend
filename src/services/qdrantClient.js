@@ -36,7 +36,7 @@
 // module.exports = { search };
 
 
-const { QdrantClient } = require("@qdrant/js");
+const { QdrantClient } = require("@qdrant/js-client-rest");
 const path = require("path");
 const dotenv = require("dotenv");
 
