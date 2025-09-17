@@ -1,0 +1,41 @@
+{
+  "client": "Thunder Client",
+  "collectionName": "RAG News Backend APIs",
+  "dateExported": "2025-09-16",
+  "version": "1.1",
+  "requests": [
+    {
+      "name": "Chat API",
+      "url": "http://localhost:4000/api/chat",
+      "method": "POST",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"message\": \"Tell me about Trump\"\n}"
+      }
+    },
+    {
+      "name": "Get Session History",
+      "url": "http://localhost:4000/api/session/{{sessionId}}/history",
+      "method": "GET",
+      "headers": []
+    },
+    {
+      "name": "Clear Session History",
+      "url": "http://localhost:4000/api/session/{{sessionId}}/clear",
+      "method": "POST",
+      "headers": []
+    }
+  ],
+  "variables": [
+    {
+      "name": "sessionId",
+      "value": "aa9c47ab-1d6e-4dca-8f74-8c6d058208eb"
+    }
+  ]
+}

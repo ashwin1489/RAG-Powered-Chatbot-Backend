@@ -1,0 +1,127 @@
+// src/controllers/chatController.js
+const { v4: uuidv4 } = require("uuid");
+const redisClient = require("../services/redisClient");
+const qdrant = require("../services/qdrantClient");
+const geminiClient = require("../services/geminiClient");
+const SESSION_TTL = Number(process.env.SESSION_TTL_SECONDS || 86400);
+
+const makeSystemPrompt = (retrievedPassages) => {
+  return `You are a helpful news assistant. 
+Summarize the passages below to answer the user's query. 
+- Always base your answer only on these passages. 
+- If the information is not directly answering the question, still share the most relevant details. 
+- Include the article title and URL in your answer when possible. 
+
+Passages:
+${retrievedPassages
+  .map(
+    (p) =>
+      `Title: ${p.title}\nURL: ${p.url}\nText: ${p.text}`
+  )
+  .join("\n---\n")}`;
+};
+
+exports.chat = async (req, res, next) => {
+  try {
+    const { sessionId, message } = req.body;
+    const sid = sessionId || uuidv4();
+
+    // retrieve top-k passages from vector DB
+    const topK = 4;
+    const retrievedRaw = await qdrant.search(message, topK);
+
+    // unwrap payloads so Gemini gets proper title/url/text
+    const retrieved = retrievedRaw.map((r) => ({
+      title: r.payload?.title || "Untitled",
+      url: r.payload?.url || "",
+      text: r.payload?.text || "",
+    }));
+
+    const systemPrompt = makeSystemPrompt(retrieved);
+
+    // Call Gemini with systemPrompt + userMessage
+    const assistantText = await geminiClient.generate({
+      systemPrompt,
+      userMessage: message,
+    });
+
+    // Save conversation history in Redis
+    const historyKey = `session:${sid}:history`;
+    const entryUser = { role: "user", text: message, ts: Date.now() };
+    const entryAssistant = {
+      role: "assistant",
+      text: assistantText,
+      ts: Date.now(),
+    };
+
+    await redisClient.rpush(historyKey, JSON.stringify(entryUser));
+    await redisClient.rpush(historyKey, JSON.stringify(entryAssistant));
+    await redisClient.expire(historyKey, SESSION_TTL);
+
+    res.json({
+      sessionId: sid,
+      reply: assistantText,
+      retrieved,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getHistory = async (req, res, next) => {
+  try {
+    const { sessionId } = req.params;
+    const historyKey = `session:${sessionId}:history`;
+    const items = await redisClient.lrange(historyKey, 0, -1);
+    const parsed = items.map((i) => JSON.parse(i));
+    res.json({ sessionId, history: parsed });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.clearSession = async (req, res, next) => {
+  try {
+    const { sessionId } = req.params;
+    const historyKey = `session:${sessionId}:history`;
+    await redisClient.del(historyKey);
+    res.json({ sessionId, cleared: true });
+  } catch (err) {
+    next(err);
+  }
+};
+exports.chatStream = async (req, res) => {
+  try {
+    const { message, sessionId } = req.body;
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.flushHeaders();
+
+    // retrieve docs
+    const topK = 4;
+    const retrieved = await qdrant.search(message, topK);
+
+    const systemPrompt = makeSystemPrompt(retrieved);
+
+    const chatInput = {
+      systemPrompt,
+      userMessage: message
+    };
+
+    // Call Gemini
+    const assistantText = await geminiClient.generate(chatInput);
+
+    // Stream word by word
+    const words = assistantText.split(" ");
+    for (let i = 0; i < words.length; i++) {
+      res.write(`data: ${words[i]} \n\n`);
+      await new Promise(r => setTimeout(r, 50));
+    }
+
+    res.write("data: [DONE]\n\n");
+    res.end();
+  } catch (err) {
+    console.error(err);
+    res.end();
+  }
+};
