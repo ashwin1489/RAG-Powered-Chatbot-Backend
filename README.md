@@ -282,7 +282,7 @@ npm run test:coverage
 
 **🌟 Built with ❤️ for intelligent news discovery**
 
-[Report Bug](https://github.com/your-repo/issues) • [Live Deployed](https://rag-powered-chatbot-frontend-lovat.vercel.app/) • [Documentation](https://docs.your-project.com)
+[Report Bug](https://github.com/your-repo/issues) • [Live Deployed](https://rag-powered-chatbot-frontend-lovat.vercel.app/) • [Documentation](https://github.com/ashwin1489/RAG-Powered-Chatbot-Backend/blob/main/COMPLETE_DOCUMENTATION.md)
 
 
 [Watch Demo Video](https://www.youtube.com/watch?v=vav0KYrd59I)
