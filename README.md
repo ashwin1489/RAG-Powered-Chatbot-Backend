@@ -285,4 +285,4 @@ npm run test:coverage
 [Report Bug](https://github.com/your-repo/issues) • [Live Deployed](https://rag-powered-chatbot-frontend-lovat.vercel.app/) • [Documentation](https://docs.your-project.com)
 
 
-[Watch Demo](media/demo.mp4)
+[Watch Demo Video](https://www.youtube.com/watch?v=vav0KYrd59I)
