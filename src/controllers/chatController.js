@@ -1,3 +1,4 @@
+// src/controllers/chatController.js
 const { v4: uuidv4 } = require("uuid");
 const redisClient = require("../services/redisClient");
 const { qdrantClient, embedText } = require("../services/qdrantClient");
@@ -35,18 +36,22 @@ exports.chat = async (req, res, next) => {
 
     // Search top-k docs from Qdrant
     const topK = 4;
-    const hits = await qdrantClient.points.search({
+    const searchRes = await qdrantClient.points.search({
       collection_name: process.env.QDRANT_COLLECTION,
       vector: embedding,
       limit: topK,
       with_payload: true,
     });
 
+    // ✅ unwrap result array
+    const hits = searchRes.result || [];
     const retrieved = hits.map((r) => ({
       title: r.payload?.title || "Untitled",
       url: r.payload?.url || "",
       text: r.payload?.text || "",
     }));
+
+    console.log("Qdrant hits:", hits.length);
 
     const systemPrompt = makeSystemPrompt(retrieved);
 
@@ -111,18 +116,21 @@ exports.chatStream = async (req, res) => {
 
     const embedding = await embedText(message);
     const topK = 4;
-    const hits = await qdrantClient.points.search({
+    const searchRes = await qdrantClient.points.search({
       collection_name: process.env.QDRANT_COLLECTION,
       vector: embedding,
       limit: topK,
       with_payload: true,
     });
 
+    const hits = searchRes.result || [];
     const retrieved = hits.map((r) => ({
       title: r.payload?.title || "Untitled",
       url: r.payload?.url || "",
       text: r.payload?.text || "",
     }));
+
+    console.log("Qdrant hits (stream):", hits.length);
 
     const systemPrompt = makeSystemPrompt(retrieved);
 
