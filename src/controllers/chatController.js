@@ -1,8 +1,8 @@
-// src/controllers/chatController.js
 const { v4: uuidv4 } = require("uuid");
 const redisClient = require("../services/redisClient");
-const qdrant = require("../services/qdrantClient");
+const { qdrant, embedText } = require("../services/qdrantClient");
 const geminiClient = require("../services/geminiClient");
+
 const SESSION_TTL = Number(process.env.SESSION_TTL_SECONDS || 86400);
 
 const makeSystemPrompt = (retrievedPassages) => {
@@ -21,17 +21,26 @@ ${retrievedPassages
   .join("\n---\n")}`;
 };
 
+// --- Chat endpoint ---
 exports.chat = async (req, res, next) => {
   try {
     const { sessionId, message } = req.body;
     const sid = sessionId || uuidv4();
 
-    // retrieve top-k passages from vector DB
-    const topK = 4;
-    const retrievedRaw = await qdrant.search(message, topK);
+    // 🔹 Generate embedding
+    const embedding = await embedText(message);
 
-    // unwrap payloads so Gemini gets proper title/url/text
-    const retrieved = retrievedRaw.map((r) => ({
+    // 🔹 Search top-k docs from Qdrant
+    const topK = 4;
+    const searchRes = await qdrant.points.search({
+      collection_name: process.env.QDRANT_COLLECTION,
+      vector: embedding,
+      limit: topK,
+      with_payload: true,
+    });
+
+    // unwrap payloads
+    const retrieved = searchRes.map((r) => ({
       title: r.payload?.title || "Untitled",
       url: r.payload?.url || "",
       text: r.payload?.text || "",
@@ -39,13 +48,13 @@ exports.chat = async (req, res, next) => {
 
     const systemPrompt = makeSystemPrompt(retrieved);
 
-    // Call Gemini with systemPrompt + userMessage
+    // 🔹 Call Gemini with system prompt + user query
     const assistantText = await geminiClient.generate({
       systemPrompt,
       userMessage: message,
     });
 
-    // Save conversation history in Redis
+    // Save history in Redis
     const historyKey = `session:${sid}:history`;
     const entryUser = { role: "user", text: message, ts: Date.now() };
     const entryAssistant = {
@@ -68,6 +77,7 @@ exports.chat = async (req, res, next) => {
   }
 };
 
+// --- Get history ---
 exports.getHistory = async (req, res, next) => {
   try {
     const { sessionId } = req.params;
@@ -80,6 +90,7 @@ exports.getHistory = async (req, res, next) => {
   }
 };
 
+// --- Clear session ---
 exports.clearSession = async (req, res, next) => {
   try {
     const { sessionId } = req.params;
@@ -90,6 +101,8 @@ exports.clearSession = async (req, res, next) => {
     next(err);
   }
 };
+
+// --- Streaming chat ---
 exports.chatStream = async (req, res) => {
   try {
     const { message, sessionId } = req.body;
@@ -97,25 +110,35 @@ exports.chatStream = async (req, res) => {
     res.setHeader("Cache-Control", "no-cache");
     res.flushHeaders();
 
-    // retrieve docs
+    // 🔹 Embed and search
+    const embedding = await embedText(message);
     const topK = 4;
-    const retrieved = await qdrant.search(message, topK);
+    const searchRes = await qdrant.points.search({
+      collection_name: process.env.QDRANT_COLLECTION,
+      vector: embedding,
+      limit: topK,
+      with_payload: true,
+    });
+
+    const retrieved = searchRes.map((r) => ({
+      title: r.payload?.title || "Untitled",
+      url: r.payload?.url || "",
+      text: r.payload?.text || "",
+    }));
 
     const systemPrompt = makeSystemPrompt(retrieved);
 
-    const chatInput = {
+    // 🔹 Call Gemini
+    const assistantText = await geminiClient.generate({
       systemPrompt,
-      userMessage: message
-    };
+      userMessage: message,
+    });
 
-    // Call Gemini
-    const assistantText = await geminiClient.generate(chatInput);
-
-    // Stream word by word
+    // 🔹 Stream word by word
     const words = assistantText.split(" ");
     for (let i = 0; i < words.length; i++) {
       res.write(`data: ${words[i]} \n\n`);
-      await new Promise(r => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 50));
     }
 
     res.write("data: [DONE]\n\n");
