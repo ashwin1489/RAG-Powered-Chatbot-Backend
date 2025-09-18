@@ -574,18 +574,7 @@ npm run test:e2e
 
 ---
 
-## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-<div align="center">
-
-**🌟 Built with ❤️ for intelligent news discovery**
-
-[Backend Repository](https://github.com/your-username/rag-news-backend) • [Frontend Repository](https://github.com/your-username/rag-news-frontend) • [Live Demo](https://your-app.vercel.app)
-
-**💡 Complete RAG system with modern React frontend and Express backend**
-
-</div>
