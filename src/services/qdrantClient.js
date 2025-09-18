@@ -15,10 +15,14 @@ async function getPipeline(
   return pipeline(task, model);
 }
 
-// Initialize Qdrant client
+// ✅ Hardcode fallback to Cloud if env not set
 const qdrantClient = new QdrantClient({
-  url: process.env.QDRANT_URL,        // e.g. https://xxxx.qdrant.io
-  apiKey: process.env.QDRANT_API_KEY, // from Qdrant Cloud
+  url:
+    process.env.QDRANT_URL ||
+    "https://d17baae9-9ed7-4efb-9238-ac17eb9ee92e.us-west-1-0.aws.cloud.qdrant.io",
+  apiKey:
+    process.env.QDRANT_API_KEY ||
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.iMoo-NZkYp0HdZEBYk8fg4TMc5qtlNPuY4sNWpV_gfo",
 });
 
 // Embed text using xenova transformers
