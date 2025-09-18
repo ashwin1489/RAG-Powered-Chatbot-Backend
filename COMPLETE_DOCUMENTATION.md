@@ -74,7 +74,6 @@ graph TB
 ### 🎨 Frontend Features
 🎯 **Intelligent Chat Interface** - Clean, modern conversation UI  
 ⚡ **Real-time Streaming** - Live token-by-token response display  
-📱 **Responsive Design** - Perfect on desktop, tablet, and mobile  
 🗂️ **Session Management** - Persistent conversation history  
 📄 **Source Citations** - View retrieved documents and sources  
 🌙 **Modern UX** - Smooth animations and intuitive interactions  
@@ -99,7 +98,6 @@ graph TB
 | **⚡ Build Tool** | `Vite` | Lightning-fast development & builds |
 | **🎨 Styling** | `Tailwind CSS` | Utility-first CSS framework |
 | **📡 API Client** | `Fetch API + SSE` | REST calls & real-time streaming |
-| **📱 Responsive** | `CSS Grid + Flexbox` | Mobile-first responsive design |
 | **🚀 Deployment** | `Vercel` | Edge-optimized static hosting |
 
 ---
@@ -295,7 +293,6 @@ curl -X POST -H 'Content-Type: application/json' -d '{"message":"hello"}' 'https
 #### 🎨 User Experience
 
 - **🌊 Smooth Animations** - Typing indicators and message transitions
-- **📱 Mobile Optimized** - Touch-friendly interface for all devices
 - **♿ Accessibility** - ARIA labels and keyboard navigation
 - **🎭 Loading States** - Clear feedback during processing
 
@@ -569,7 +566,6 @@ npm run test:e2e
 - Follow existing code style and patterns
 - Add tests for new functionality
 - Update documentation for API changes
-- Ensure mobile responsiveness for UI changes
 - Test across different browsers and devices
 
 ---
