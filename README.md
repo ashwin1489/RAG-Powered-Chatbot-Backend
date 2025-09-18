@@ -284,5 +284,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **🌟 Built with ❤️ for intelligent news discovery**
 
-[Report Bug](https://github.com/your-repo/issues) • [Request Feature](https://github.com/your-repo/issues) • [Documentation](https://docs.your-project.com)
+[Report Bug](https://github.com/your-repo/issues) • [Live Deployed](https://rag-powered-chatbot-frontend-lovat.vercel.app/) • [Documentation](https://docs.your-project.com)
 
