@@ -3,7 +3,7 @@ const { QdrantClient } = require("@qdrant/js-client-rest");
 const path = require("path");
 const dotenv = require("dotenv");
 
-// Load .env locally
+// Load .env locally (Render injects env automatically)
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 // --- Dynamic import for transformers ---

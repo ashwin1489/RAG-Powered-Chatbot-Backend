@@ -15,10 +15,7 @@ Summarize the passages below to answer the user's query.
 
 Passages:
 ${retrievedPassages
-  .map(
-    (p) =>
-      `Title: ${p.title}\nURL: ${p.url}\nText: ${p.text}`
-  )
+  .map((p) => `Title: ${p.title}\nURL: ${p.url}\nText: ${p.text}`)
   .join("\n---\n")}`;
 };
 
@@ -33,7 +30,7 @@ exports.chat = async (req, res, next) => {
 
     // 🔹 Search top-k docs from Qdrant
     const topK = 4;
-    const searchRes = await qdrantClient.points.search({
+    const searchRes = await qdrantClient.search({
       collection_name: process.env.QDRANT_COLLECTION,
       vector: embedding,
       limit: topK,
@@ -109,9 +106,10 @@ exports.chatStream = async (req, res) => {
     res.setHeader("Cache-Control", "no-cache");
     res.flushHeaders();
 
+    // 🔹 Embed and search
     const embedding = await embedText(message);
     const topK = 4;
-    const searchRes = await qdrantClient.points.search({
+    const searchRes = await qdrantClient.search({
       collection_name: process.env.QDRANT_COLLECTION,
       vector: embedding,
       limit: topK,
@@ -126,11 +124,13 @@ exports.chatStream = async (req, res) => {
 
     const systemPrompt = makeSystemPrompt(retrieved);
 
+    // 🔹 Call Gemini
     const assistantText = await geminiClient.generate({
       systemPrompt,
       userMessage: message,
     });
 
+    // 🔹 Stream word by word
     const words = assistantText.split(" ");
     for (let i = 0; i < words.length; i++) {
       res.write(`data: ${words[i]} \n\n`);
