@@ -1,8 +1,9 @@
+// src/services/qdrantClient.js
 const { QdrantClient } = require("@qdrant/js-client-rest");
 const path = require("path");
 const dotenv = require("dotenv");
 
-// Load .env (local only; Render uses env vars directly)
+// Load .env locally
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 // --- Dynamic import for transformers ---
@@ -15,9 +16,9 @@ async function getPipeline(
 }
 
 // Initialize Qdrant client
-const qdrant = new QdrantClient({
+const qdrantClient = new QdrantClient({
   url: process.env.QDRANT_URL,        // e.g. https://xxxx.qdrant.io
-  apiKey: process.env.QDRANT_API_KEY, // from Qdrant Cloud API Keys
+  apiKey: process.env.QDRANT_API_KEY, // from Qdrant Cloud
 });
 
 // Embed text using xenova transformers
@@ -36,6 +37,6 @@ async function embedText(text) {
 }
 
 module.exports = {
-  qdrant,
+  qdrantClient,
   embedText,
 };
