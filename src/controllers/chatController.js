@@ -15,9 +15,7 @@ Summarize the passages below to answer the user's query.
 
 Passages:
 ${retrievedPassages
-  .map(
-    (p) => `Title: ${p.title}\nURL: ${p.url}\nText: ${p.text}`
-  )
+  .map((p) => `Title: ${p.title}\nURL: ${p.url}\nText: ${p.text}`)
   .join("\n---\n")}`;
 };
 
@@ -27,19 +25,20 @@ exports.chat = async (req, res, next) => {
     const { sessionId, message } = req.body;
     const sid = sessionId || uuidv4();
 
-    // 🔹 Generate embedding
+    // Generate embedding
     const embedding = await embedText(message);
 
-    // 🔹 Search top-k docs from Qdrant
+    // Search top-k docs from Qdrant
     const topK = 4;
-    const searchRes = await qdrantClient.points.search({
-      collection_name: process.env.QDRANT_COLLECTION,
-      vector: embedding,
-      limit: topK,
-      with_payload: true,
-    });
+    const searchRes = await qdrantClient.search(
+      process.env.QDRANT_COLLECTION,
+      {
+        vector: embedding,
+        limit: topK,
+        with_payload: true,
+      }
+    );
 
-    // ✅ unwrap result array
     const hits = searchRes.result || [];
     const retrieved = hits.map((r) => ({
       title: r.payload?.title || "Untitled",
@@ -49,7 +48,7 @@ exports.chat = async (req, res, next) => {
 
     const systemPrompt = makeSystemPrompt(retrieved);
 
-    // 🔹 Call Gemini
+    // Call Gemini
     const assistantText = await geminiClient.generate({
       systemPrompt,
       userMessage: message,
@@ -70,6 +69,7 @@ exports.chat = async (req, res, next) => {
       retrieved,
     });
   } catch (err) {
+    console.error("❌ Chat error:", err);
     next(err);
   }
 };
@@ -102,22 +102,22 @@ exports.clearSession = async (req, res, next) => {
 // --- Streaming chat ---
 exports.chatStream = async (req, res) => {
   try {
-    const { message, sessionId } = req.body;
+    const { message } = req.body;
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.flushHeaders();
 
-    // 🔹 Embed and search
     const embedding = await embedText(message);
     const topK = 4;
-    const searchRes = await qdrantClient.points.search({
-      collection_name: process.env.QDRANT_COLLECTION,
-      vector: embedding,
-      limit: topK,
-      with_payload: true,
-    });
+    const searchRes = await qdrantClient.search(
+      process.env.QDRANT_COLLECTION,
+      {
+        vector: embedding,
+        limit: topK,
+        with_payload: true,
+      }
+    );
 
-    // ✅ unwrap result array
     const hits = searchRes.result || [];
     const retrieved = hits.map((r) => ({
       title: r.payload?.title || "Untitled",
@@ -127,13 +127,12 @@ exports.chatStream = async (req, res) => {
 
     const systemPrompt = makeSystemPrompt(retrieved);
 
-    // 🔹 Call Gemini
     const assistantText = await geminiClient.generate({
       systemPrompt,
       userMessage: message,
     });
 
-    // 🔹 Stream word by word
+    // Stream word by word
     const words = assistantText.split(" ");
     for (let i = 0; i < words.length; i++) {
       res.write(`data: ${words[i]} \n\n`);
@@ -143,7 +142,7 @@ exports.chatStream = async (req, res) => {
     res.write("data: [DONE]\n\n");
     res.end();
   } catch (err) {
-    console.error(err);
+    console.error("❌ Stream error:", err);
     res.end();
   }
 };
