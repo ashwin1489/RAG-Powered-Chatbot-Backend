@@ -1,4 +1,3 @@
-// src/controllers/chatController.js
 const { v4: uuidv4 } = require("uuid");
 const redisClient = require("../services/redisClient");
 const { qdrantClient, embedText } = require("../services/qdrantClient");
@@ -7,6 +6,12 @@ const geminiClient = require("../services/geminiClient");
 const SESSION_TTL = Number(process.env.SESSION_TTL_SECONDS || 86400);
 
 const makeSystemPrompt = (retrievedPassages) => {
+  if (!retrievedPassages.length) {
+    return `You are a helpful news assistant.
+No relevant passages were found in the database. 
+Kindly let the user know there is no matching news at the moment, but answer politely.`;
+  }
+
   return `You are a helpful news assistant. 
 Summarize the passages below to answer the user's query. 
 - Always base your answer only on these passages. 
@@ -15,8 +20,8 @@ Summarize the passages below to answer the user's query.
 
 Passages:
 ${retrievedPassages
-  .map((p) => `Title: ${p.title}\nURL: ${p.url}\nText: ${p.text}`)
-  .join("\n---\n")}`;
+    .map((p) => `Title: ${p.title}\nURL: ${p.url}\nText: ${p.text}`)
+    .join("\n---\n")}`;
 };
 
 // --- Chat endpoint ---
@@ -30,16 +35,13 @@ exports.chat = async (req, res, next) => {
 
     // Search top-k docs from Qdrant
     const topK = 4;
-    const searchRes = await qdrantClient.search(
-      process.env.QDRANT_COLLECTION,
-      {
-        vector: embedding,
-        limit: topK,
-        with_payload: true,
-      }
-    );
+    const hits = await qdrantClient.points.search({
+      collection_name: process.env.QDRANT_COLLECTION,
+      vector: embedding,
+      limit: topK,
+      with_payload: true,
+    });
 
-    const hits = searchRes.result || [];
     const retrieved = hits.map((r) => ({
       title: r.payload?.title || "Untitled",
       url: r.payload?.url || "",
@@ -109,16 +111,13 @@ exports.chatStream = async (req, res) => {
 
     const embedding = await embedText(message);
     const topK = 4;
-    const searchRes = await qdrantClient.search(
-      process.env.QDRANT_COLLECTION,
-      {
-        vector: embedding,
-        limit: topK,
-        with_payload: true,
-      }
-    );
+    const hits = await qdrantClient.points.search({
+      collection_name: process.env.QDRANT_COLLECTION,
+      vector: embedding,
+      limit: topK,
+      with_payload: true,
+    });
 
-    const hits = searchRes.result || [];
     const retrieved = hits.map((r) => ({
       title: r.payload?.title || "Untitled",
       url: r.payload?.url || "",

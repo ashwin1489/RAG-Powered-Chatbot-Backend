@@ -114,8 +114,11 @@ def main(limit=50):
 
     vector_size = vectors.shape[1]
 
-    # ✅ Create/recreate collection in Qdrant Cloud
-    qdrant.recreate_collection(
+    # ✅ Ensure collection is created fresh in Qdrant Cloud
+    if qdrant.collection_exists(COLLECTION):
+        qdrant.delete_collection(collection_name=COLLECTION)
+
+    qdrant.create_collection(
         collection_name=COLLECTION,
         vectors_config=models.VectorParams(size=vector_size, distance=models.Distance.COSINE),
     )
