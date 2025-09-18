@@ -274,9 +274,7 @@ npm run test:coverage
 4. Push to branch: `git push origin feature/amazing-feature`
 5. Open a Pull Request
 
-## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
