@@ -15,7 +15,9 @@ Summarize the passages below to answer the user's query.
 
 Passages:
 ${retrievedPassages
-  .map((p) => `Title: ${p.title}\nURL: ${p.url}\nText: ${p.text}`)
+  .map(
+    (p) => `Title: ${p.title}\nURL: ${p.url}\nText: ${p.text}`
+  )
   .join("\n---\n")}`;
 };
 
@@ -30,14 +32,16 @@ exports.chat = async (req, res, next) => {
 
     // 🔹 Search top-k docs from Qdrant
     const topK = 4;
-    const searchRes = await qdrantClient.search({
+    const searchRes = await qdrantClient.points.search({
       collection_name: process.env.QDRANT_COLLECTION,
       vector: embedding,
       limit: topK,
       with_payload: true,
     });
 
-    const retrieved = (searchRes || []).map((r) => ({
+    // ✅ unwrap result array
+    const hits = searchRes.result || [];
+    const retrieved = hits.map((r) => ({
       title: r.payload?.title || "Untitled",
       url: r.payload?.url || "",
       text: r.payload?.text || "",
@@ -45,6 +49,7 @@ exports.chat = async (req, res, next) => {
 
     const systemPrompt = makeSystemPrompt(retrieved);
 
+    // 🔹 Call Gemini
     const assistantText = await geminiClient.generate({
       systemPrompt,
       userMessage: message,
@@ -53,11 +58,7 @@ exports.chat = async (req, res, next) => {
     // Save conversation history in Redis
     const historyKey = `session:${sid}:history`;
     const entryUser = { role: "user", text: message, ts: Date.now() };
-    const entryAssistant = {
-      role: "assistant",
-      text: assistantText,
-      ts: Date.now(),
-    };
+    const entryAssistant = { role: "assistant", text: assistantText, ts: Date.now() };
 
     await redisClient.rpush(historyKey, JSON.stringify(entryUser));
     await redisClient.rpush(historyKey, JSON.stringify(entryAssistant));
@@ -109,14 +110,16 @@ exports.chatStream = async (req, res) => {
     // 🔹 Embed and search
     const embedding = await embedText(message);
     const topK = 4;
-    const searchRes = await qdrantClient.search({
+    const searchRes = await qdrantClient.points.search({
       collection_name: process.env.QDRANT_COLLECTION,
       vector: embedding,
       limit: topK,
       with_payload: true,
     });
 
-    const retrieved = (searchRes || []).map((r) => ({
+    // ✅ unwrap result array
+    const hits = searchRes.result || [];
+    const retrieved = hits.map((r) => ({
       title: r.payload?.title || "Untitled",
       url: r.payload?.url || "",
       text: r.payload?.text || "",
