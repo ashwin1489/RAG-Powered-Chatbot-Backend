@@ -35,18 +35,14 @@ exports.chat = async (req, res, next) => {
     // 1️⃣ Generate embedding
     const embedding = await embedText(message);
 
-    // 2️⃣ Search Qdrant
+    // 2️⃣ Search Qdrant (returns array directly)
     const topK = 4;
-    const searchRes = await qdrantClient.search(
-      process.env.QDRANT_COLLECTION,
-      {
-        vector: embedding,
-        limit: topK,
-        with_payload: true,
-      }
-    );
+    const hits = await qdrantClient.search(process.env.QDRANT_COLLECTION, {
+      vector: embedding,
+      limit: topK,
+      with_payload: true,
+    });
 
-    const hits = searchRes.result || [];
     const retrieved = hits.map((r) => ({
       title: r.payload?.title || "Untitled",
       url: r.payload?.url || "",
@@ -111,16 +107,12 @@ exports.chatStream = async (req, res) => {
     // 1️⃣ Embed and search
     const embedding = await embedText(message);
     const topK = 4;
-    const searchRes = await qdrantClient.search(
-      process.env.QDRANT_COLLECTION,
-      {
-        vector: embedding,
-        limit: topK,
-        with_payload: true,
-      }
-    );
+    const hits = await qdrantClient.search(process.env.QDRANT_COLLECTION, {
+      vector: embedding,
+      limit: topK,
+      with_payload: true,
+    });
 
-    const hits = searchRes.result || [];
     const retrieved = hits.map((r) => ({
       title: r.payload?.title || "Untitled",
       url: r.payload?.url || "",
