@@ -6,6 +6,7 @@ const geminiClient = require("../services/geminiClient");
 
 const SESSION_TTL = Number(process.env.SESSION_TTL_SECONDS || 86400);
 
+// --- Build system prompt ---
 const makeSystemPrompt = (retrievedPassages) => {
   if (!retrievedPassages.length) {
     return `You are a helpful news assistant.
@@ -31,19 +32,20 @@ exports.chat = async (req, res, next) => {
     const { sessionId, message } = req.body;
     const sid = sessionId || uuidv4();
 
-    // Generate embedding
+    // 1️⃣ Generate embedding
     const embedding = await embedText(message);
 
-    // Search top-k docs from Qdrant
+    // 2️⃣ Search Qdrant
     const topK = 4;
-    const searchRes = await qdrantClient.points.search({
-      collection_name: process.env.QDRANT_COLLECTION,
-      vector: embedding,
-      limit: topK,
-      with_payload: true,
-    });
+    const searchRes = await qdrantClient.search(
+      process.env.QDRANT_COLLECTION,
+      {
+        vector: embedding,
+        limit: topK,
+        with_payload: true,
+      }
+    );
 
-    // ✅ unwrap result array
     const hits = searchRes.result || [];
     const retrieved = hits.map((r) => ({
       title: r.payload?.title || "Untitled",
@@ -51,30 +53,22 @@ exports.chat = async (req, res, next) => {
       text: r.payload?.text || "",
     }));
 
-    console.log("Qdrant hits:", hits.length);
-
+    // 3️⃣ Create system prompt
     const systemPrompt = makeSystemPrompt(retrieved);
 
-    // Call Gemini
+    // 4️⃣ Call Gemini
     const assistantText = await geminiClient.generate({
       systemPrompt,
       userMessage: message,
     });
 
-    // Save conversation history in Redis
+    // 5️⃣ Save to Redis
     const historyKey = `session:${sid}:history`;
-    const entryUser = { role: "user", text: message, ts: Date.now() };
-    const entryAssistant = { role: "assistant", text: assistantText, ts: Date.now() };
-
-    await redisClient.rpush(historyKey, JSON.stringify(entryUser));
-    await redisClient.rpush(historyKey, JSON.stringify(entryAssistant));
+    await redisClient.rpush(historyKey, JSON.stringify({ role: "user", text: message, ts: Date.now() }));
+    await redisClient.rpush(historyKey, JSON.stringify({ role: "assistant", text: assistantText, ts: Date.now() }));
     await redisClient.expire(historyKey, SESSION_TTL);
 
-    res.json({
-      sessionId: sid,
-      reply: assistantText,
-      retrieved,
-    });
+    res.json({ sessionId: sid, reply: assistantText, retrieved });
   } catch (err) {
     console.error("❌ Chat error:", err);
     next(err);
@@ -114,14 +108,17 @@ exports.chatStream = async (req, res) => {
     res.setHeader("Cache-Control", "no-cache");
     res.flushHeaders();
 
+    // 1️⃣ Embed and search
     const embedding = await embedText(message);
     const topK = 4;
-    const searchRes = await qdrantClient.points.search({
-      collection_name: process.env.QDRANT_COLLECTION,
-      vector: embedding,
-      limit: topK,
-      with_payload: true,
-    });
+    const searchRes = await qdrantClient.search(
+      process.env.QDRANT_COLLECTION,
+      {
+        vector: embedding,
+        limit: topK,
+        with_payload: true,
+      }
+    );
 
     const hits = searchRes.result || [];
     const retrieved = hits.map((r) => ({
@@ -130,19 +127,19 @@ exports.chatStream = async (req, res) => {
       text: r.payload?.text || "",
     }));
 
-    console.log("Qdrant hits (stream):", hits.length);
-
+    // 2️⃣ Build system prompt
     const systemPrompt = makeSystemPrompt(retrieved);
 
+    // 3️⃣ Call Gemini
     const assistantText = await geminiClient.generate({
       systemPrompt,
       userMessage: message,
     });
 
-    // Stream word by word
+    // 4️⃣ Stream word by word
     const words = assistantText.split(" ");
-    for (let i = 0; i < words.length; i++) {
-      res.write(`data: ${words[i]} \n\n`);
+    for (const word of words) {
+      res.write(`data: ${word} \n\n`);
       await new Promise((r) => setTimeout(r, 50));
     }
 
