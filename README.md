@@ -280,7 +280,6 @@ npm run test:coverage
 
 <div align="center">
 
-**🌟 Built with ❤️ for intelligent news discovery**
 
 [Report Bug](https://github.com/your-repo/issues) • [Live Deployed](https://rag-powered-chatbot-frontend-lovat.vercel.app/) • [Documentation](https://github.com/ashwin1489/RAG-Powered-Chatbot-Backend/blob/main/COMPLETE_DOCUMENTATION.md)
 
